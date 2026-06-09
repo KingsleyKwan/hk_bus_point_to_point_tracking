@@ -302,27 +302,26 @@
         }
 
         async function fetchRoute(routeNo) {
-            // Try to discover service types by checking common bounds
-            const bounds = ['outbound', 'inbound'];
-            let services = [];
-            
-            for (const bound of bounds) {
-                try {
-                    const data = await apiFetch(`${API_BASE}/route/${routeNo}/${bound}`);
-                    if (data.data && data.data.length) {
-                        data.data.forEach(r => {
-                            services.push({
-                                route: r.route,
-                                bound: r.bound === 'O' ? 'outbound' : 'inbound',
-                                service_type: r.service_type,
-                                orig: r.orig_tc || r.orig_en,
-                                dest: r.dest_tc || r.dest_en
-                            });
-                        });
-                    }
-                } catch (_) {}
+            // Use the full route list and filter client-side (correct API usage)
+            try {
+                const data = await apiFetch(`${API_BASE}/route`);
+                if (!data.data) return [];
+
+                const upperRoute = routeNo.toUpperCase();
+                const matches = data.data.filter(r => 
+                    r.route.toUpperCase() === upperRoute
+                );
+
+                return matches.map(r => ({
+                    route: r.route,
+                    bound: r.bound === 'O' ? 'outbound' : 'inbound',
+                    service_type: r.service_type,
+                    orig: r.orig_tc || r.orig_en,
+                    dest: r.dest_tc || r.dest_en
+                }));
+            } catch (_) {
+                return [];
             }
-            return services;
         }
 
         async function fetchRouteStops(route, bound, serviceType) {
