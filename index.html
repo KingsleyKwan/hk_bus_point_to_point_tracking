@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.0.3</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.0.5</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -504,7 +504,7 @@
             try {
                 const services = await fetchRoute(input);
                 if (!services.length) {
-                    container.innerHTML = `<div class="text-xs text-amber-600 px-1">Route not found. Try 118, 960, 1A...</div>`;
+                    container.innerHTML = `<div class="text-xs text-amber-600 px-1">Route not found or not currently operating. Try 118, 960, 1A...</div>`;
                     return;
                 }
                 
@@ -538,20 +538,28 @@
             
             try {
                 const stops = await fetchRouteStops(svc.route, svc.bound, svc.service_type);
-                
-                let html = `<div class="divide-y">`;
+
+                container.innerHTML = `<div class="divide-y" id="modal-stops-container"></div>`;
+                const listContainer = document.getElementById('modal-stops-container');
+
                 for (const s of stops.slice(0, 25)) {
                     const stopDetail = await fetchStop(s.stop);
-                    html += `
-                        <div onclick="selectStopForBookmark('${s.stop}', '${stopDetail.name_tc || stopDetail.name_en}', ${JSON.stringify(svc).replace(/"/g, '&quot;')})" 
-                             class="px-4 py-[9px] stop-row cursor-pointer flex justify-between text-sm">
-                            <div>${stopDetail.name_tc || stopDetail.name_en}</div>
-                            <div class="font-mono text-[10px] text-slate-400">${s.stop}</div>
-                        </div>
+                    const name = stopDetail.name_tc || stopDetail.name_en || 'Unknown stop';
+                    const row = document.createElement('div');
+                    row.className = 'px-4 py-[9px] stop-row cursor-pointer flex justify-between text-sm';
+                    row.innerHTML = `
+                        <div>${name}</div>
+                        <div class="font-mono text-[10px] text-slate-400">${s.stop}</div>
                     `;
+                    row.onclick = () => {
+                        currentSelectedStop = { stopId: s.stop, stopName: name, route: svc };
+                        const nameInput = document.getElementById('bookmark-name');
+                        if (!nameInput.value) {
+                            nameInput.value = name.length > 12 ? name.substring(0, 11) : name;
+                        }
+                    };
+                    listContainer.appendChild(row);
                 }
-                html += `</div>`;
-                container.innerHTML = html;
             } catch (e) {
                 container.innerHTML = `<div class="p-4 text-xs text-red-400">Failed to load stops</div>`;
             }
@@ -569,12 +577,12 @@
 
         async function saveBookmark() {
             if (!currentSelectedStop) {
-                showToast('Please select a stop', true);
+                showToast('Please select a stop first', true);
                 return;
             }
-            
+
             const name = document.getElementById('bookmark-name').value.trim() || currentSelectedStop.stopName;
-            
+
             const newBm = {
                 id: 'bm_' + Date.now(),
                 name: name,
@@ -583,21 +591,20 @@
                 routes: [currentSelectedStop.route],
                 added: new Date().toISOString()
             };
-            
-            // Avoid duplicates by stopId
+
             if (bookmarks.some(b => b.stopId === newBm.stopId)) {
                 showToast('This stop is already bookmarked', true);
                 return;
             }
-            
+
             bookmarks.push(newBm);
             saveBookmarks();
             hideAddModal();
             showToast('Bookmark saved!');
-            
-            // refresh view
+
             if (activeTab === 'bookmarks') renderBookmarks();
             updateCommuteSelectors();
+            updatePlanSelectors();
         }
 
         function goBackToRouteSearch() {
@@ -700,7 +707,7 @@
             try {
                 const services = await fetchRoute(val);
                 if (!services.length) {
-                    container.innerHTML = `<div class="text-sm px-2 text-amber-600">No matching route found. Try 118, 960, 1A, etc.</div>`;
+                    container.innerHTML = `<div class="text-sm px-2 text-amber-600">No matching route found (or not operating today). Try 118, 960, 1A, etc.</div>`;
                     return;
                 }
                 
