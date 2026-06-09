@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus</h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.0.2</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -472,7 +472,7 @@
             try {
                 const services = await fetchRoute(input);
                 if (!services.length) {
-                    container.innerHTML = `<div class="text-xs text-red-400 px-1">Route not found</div>`;
+                    container.innerHTML = `<div class="text-xs text-amber-600 px-1">Route not found. Try 118, 960, 1A...</div>`;
                     return;
                 }
                 
@@ -491,7 +491,7 @@
                 });
                 container.innerHTML = html;
             } catch (e) {
-                container.innerHTML = `<div class="text-xs text-red-400">Error loading route</div>`;
+                container.innerHTML = `<div class="text-xs text-red-400">Network error. Check connection.</div>`;
             }
         }
 
@@ -668,7 +668,7 @@
             try {
                 const services = await fetchRoute(val);
                 if (!services.length) {
-                    container.innerHTML = `<div class="text-sm px-2 text-red-500">No route found.</div>`;
+                    container.innerHTML = `<div class="text-sm px-2 text-amber-600">No matching route found. Try 118, 960, 1A, etc.</div>`;
                     return;
                 }
                 
@@ -683,8 +683,9 @@
                 });
                 container.innerHTML = html;
                 window._lastSearchServices = services;
-            } catch (_) {
-                container.innerHTML = `<div class="text-sm px-2 text-red-500">Search failed.</div>`;
+            } catch (e) {
+                container.innerHTML = `<div class="text-sm px-2 text-red-500">Network error. Please check your connection.</div>`;
+                console.error(e);
             }
         }
 
