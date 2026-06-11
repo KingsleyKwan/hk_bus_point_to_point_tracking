@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.4</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v3.0</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -275,12 +275,21 @@
 
     <script>
         // ==================== CONFIG & STATE ====================
-        const API_BASE = 'https://data.etabus.gov.hk/v1/transport/kmb';
+        const API_BASE_KMB = 'https://data.etabus.gov.hk/v1/transport/kmb';
+        const API_BASE_CTB = 'https://data.etabus.gov.hk/v1/transport/citybus';  // also works for most NWFB routes
         let bookmarks = JSON.parse(localStorage.getItem('hkbus_bookmarks') || '[]');
         let currentLang = localStorage.getItem('hkbus_lang') || 'en';
         let currentRouteData = null;
         let currentSelectedStop = null;
         let activeTab = 'bookmarks';
+
+        // Route prefix → company mapping (expanded for multi-operator support)
+        function getCompanyForRoute(route) {
+            const r = String(route || '').toUpperCase().trim();
+            if (r.startsWith('N') || ['K', 'T', 'S', 'X'].some(prefix => r.startsWith(prefix))) return 'kmb';
+            if (['1', '2', '3', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99'].some(p => r.startsWith(p))) return 'ctb';
+            return 'kmb'; // default
+        }
 
         // ==================== UTILS ====================
         function saveBookmarks() {
@@ -344,9 +353,13 @@
         }
 
         async function fetchRoute(routeNo) {
+            const company = getCompanyForRoute(routeNo);
+            const base = company === 'ctb' ? API_BASE_CTB : API_BASE_KMB;
+            const companyName = company === 'ctb' ? 'Citybus/NWFB' : 'KMB/LWB';
+
             // Use the full route list and filter client-side (correct API usage)
             try {
-                const data = await apiFetch(`${API_BASE}/route`);
+                const data = await apiFetch(`${base}/route`);
                 if (!data.data) return [];
 
                 const upperRoute = routeNo.toUpperCase().trim();
@@ -355,10 +368,14 @@
                 );
 
                 if (matches.length === 0) {
-                    console.warn(`No matches found for route "${routeNo}". Available similar routes:`, 
-                        data.data.filter(r => r.route.includes(routeNo) || routeNo.includes(r.route)).slice(0,5).map(r=>r.route));
+                    console.warn(`No matches found for route "${routeNo}" in ${companyName}. Trying alternate company...`);
+                    // Fallback to the other company
+                    const altBase = company === 'ctb' ? API_BASE_KMB : API_BASE_CTB;
+                    const altData = await apiFetch(`${altBase}/route`).catch(() => ({data: []}));
+                    const altMatches = (altData.data || []).filter(r => r.route.toUpperCase() === upperRoute);
+                    if (altMatches.length > 0) return altMatches.map(r => ({...r, company}));
                 } else {
-                    console.log(`Found ${matches.length} service(s) for ${routeNo}:`, matches.map(m => `${m.route} ${m.bound} (svc ${m.service_type})`));
+                    console.log(`Found ${matches.length} service(s) for ${routeNo} (${companyName}):`, matches.map(m => `${m.route} ${m.bound} (svc ${m.service_type})`));
                 }
 
                 return matches.map(r => ({
@@ -366,7 +383,8 @@
                     bound: r.bound,
                     service_type: r.service_type,
                     orig: r.orig_tc || r.orig_en,
-                    dest: r.dest_tc || r.dest_en
+                    dest: r.dest_tc || r.dest_en,
+                    company: company
                 }));
             } catch (e) {
                 console.error('fetchRoute failed:', e.message || e);
@@ -377,29 +395,33 @@
             }
         }
 
-        async function fetchRouteStops(route, bound, serviceType) {
+        async function fetchRouteStops(route, bound, serviceType, companyHint = null) {
+            const company = companyHint || getCompanyForRoute(route);
+            const base = company === 'ctb' ? API_BASE_CTB : API_BASE_KMB;
+
             // The API is very picky about 'bound' + service_type combos (many 422 "Invalid direction." even for real routes)
             // Normalize bound; we let the try/catch handle the rest gracefully.
             let apiBound = String(bound || '').toUpperCase().trim();
             if (apiBound === 'OUTBOUND' || apiBound === 'O' || apiBound === '1') apiBound = 'O';
             if (apiBound === 'INBOUND' || apiBound === 'I' || apiBound === '2') apiBound = 'I';
             
-            const url = `${API_BASE}/route-stop/${route}/${apiBound}/${serviceType}`;
+            const url = `${base}/route-stop/${route}/${apiBound}/${serviceType}`;
             try {
                 const res = await apiFetch(url);
                 const data = res.data || [];
-                console.log(`fetchRouteStops(${route}, ${apiBound}, ${serviceType}) returned ${data.length} stops`);
+                console.log(`fetchRouteStops(${route}, ${apiBound}, ${serviceType}) [${company}] returned ${data.length} stops`);
                 return data;
             } catch (e) {
                 // Many valid-looking combos return 422 "Invalid direction." (e.g. 80K/I/1, 83K/O/2). Treat gracefully.
-                console.warn(`fetchRouteStops failed for ${route}/${apiBound}/${serviceType}:`, e.message || e);
+                console.warn(`fetchRouteStops failed for ${route}/${apiBound}/${serviceType} [${company}]:`, e.message || e);
                 return [];
             }
         }
 
         async function fetchStop(stopId) {
+            // Stop endpoint is the same for both KMB and Citybus
             try {
-                const res = await apiFetch(`${API_BASE}/stop/${stopId}`);
+                const res = await apiFetch(`${API_BASE_KMB}/stop/${stopId}`);
                 return res.data;
             } catch (e) {
                 console.error(`fetchStop(${stopId}) failed:`, e);
@@ -407,13 +429,15 @@
             }
         }
 
-        async function fetchRouteEta(route, serviceType) {
-            const url = `${API_BASE}/route-eta/${route}/${serviceType}`;
+        async function fetchRouteEta(route, serviceType, companyHint = null) {
+            const company = companyHint || getCompanyForRoute(route);
+            const base = company === 'ctb' ? API_BASE_CTB : API_BASE_KMB;
+            const url = `${base}/route-eta/${route}/${serviceType}`;
             try {
                 const res = await apiFetch(url);
                 return res.data || [];
             } catch (e) {
-                console.error(`fetchRouteEta failed for ${route}/${serviceType}:`, e);
+                console.error(`fetchRouteEta failed for ${route}/${serviceType} [${company}]:`, e);
                 return [];
             }
         }
@@ -466,7 +490,7 @@
             
             try {
                 for (const r of bm.routes || []) {
-                    const etas = await fetchRouteEta(r.route, r.service_type);
+                    const etas = await fetchRouteEta(r.route, r.service_type, r.company);
                     etas.forEach(e => {
                         if (e.stop === parseInt(bm.stopId) && e.eta) {
                             allEtas.push({
@@ -593,7 +617,7 @@
             container.innerHTML = `<div class="p-4 text-xs text-slate-400">Loading stops...</div>`;
             
             try {
-                const stops = await fetchRouteStops(svc.route, svc.bound, svc.service_type);
+                const stops = await fetchRouteStops(svc.route, svc.bound, svc.service_type, svc.company);
                 console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}): ${stops.length} stops loaded`);
 
                 if (!stops || stops.length === 0) {
@@ -730,7 +754,7 @@
             let all = [];
             try {
                 for (const r of bm.routes) {
-                    const etas = await fetchRouteEta(r.route, r.service_type);
+                    const etas = await fetchRouteEta(r.route, r.service_type, r.company);
                     etas.forEach(e => {
                         if (e.stop == bm.stopId && e.eta) {
                             all.push({
@@ -830,7 +854,7 @@
                     const container = document.getElementById('modal-stop-list');
                     container.innerHTML = `<div class="p-4 text-xs text-slate-400">Loading stops...</div>`;
                     
-                    const stops = await fetchRouteStops(svc.route, svc.bound, svc.service_type);
+                    const stops = await fetchRouteStops(svc.route, svc.bound, svc.service_type, svc.company);
                     let html = `<div class="divide-y">`;
                     for (const s of stops.slice(0, 20)) {
                         const stopDetail = await fetchStop(s.stop);
@@ -890,7 +914,7 @@
             let allEtas = [];
             try {
                 for (const r of homeBm.routes) {
-                    const etas = await fetchRouteEta(r.route, r.service_type);
+                    const etas = await fetchRouteEta(r.route, r.service_type, r.company);
                     etas.forEach(e => {
                         if (e.stop == homeBm.stopId && e.eta) {
                             allEtas.push({
@@ -972,7 +996,7 @@
                     let reachesDestination = true;
                     if (toBm) {
                         try {
-                            const routeStops = await fetchRouteStops(r.route, r.bound, r.service_type);
+                            const routeStops = await fetchRouteStops(r.route, r.bound, r.service_type, r.company);
                             const fromSeq = routeStops.find(s => String(s.stop) === String(fromBm.stopId))?.seq;
                             const toSeq = routeStops.find(s => String(s.stop) === String(toBm.stopId))?.seq;
                             reachesDestination = !!(fromSeq && toSeq && parseInt(fromSeq) < parseInt(toSeq));
@@ -986,7 +1010,7 @@
                         }
                     }
 
-                    const etas = await fetchRouteEta(r.route, r.service_type);
+                    const etas = await fetchRouteEta(r.route, r.service_type, r.company);
                     etas.forEach(e => {
                         if (e.stop == fromBm.stopId && e.eta && reachesDestination) {
                             allEtas.push({

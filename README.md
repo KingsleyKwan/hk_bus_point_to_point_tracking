@@ -101,9 +101,11 @@ This solves the common pain point: "There are many buses here — which one actu
 
 All real-time data comes from the official Hong Kong government open data API:
 
-- **KMB / LWB** — https://data.etabus.gov.hk
+- **KMB / LWB** — `https://data.etabus.gov.hk/v1/transport/kmb`
+- **Citybus / NWFB** — `https://data.etabus.gov.hk/v1/transport/citybus` (auto-detected by route number)
 - No API key required
 - Updates every 30–60 seconds
+- **Multi-company support added in v3.0** — the app now automatically tries both operators and falls back when one returns 422 or no data.
 
 ## 📁 Project Structure
 
