@@ -1,18 +1,19 @@
 # 🚌 HK Bus Point-to-Point Tracker
 
-Real-time Hong Kong bus tracker with **bookmarks** and **commute view**.
+Real-time Hong Kong bus tracker with **bookmarks**, **commute view**, and **smart Point-to-Point** search.
 
-Track buses from your saved places (Home, Office, Gym, etc.) and instantly see which bus is coming next — sorted by remaining waiting time.
+**New:** At any plaza or stop with many bus options, select your "From" and "To" saved locations. The app now intelligently shows **only buses that actually stop at both** — sorted by shortest wait time. No more checking route-by-route!
 
 ![HK Bus Tracker](https://raw.githubusercontent.com/KingsleyKwan/hk_bus_point_to_point_tracking/main/screenshot.png)
 
 ## ✨ Features
 
-- **📌 10 Bookmarks** — Save any bus stop with a custom name
-- **⏱ Live ETA** — Real-time arrival times from KMB/LWB official API
-- **🚏 Commute View** — See next buses from "Home" sorted by wait time
+- **📌 10 Bookmarks** — Save any bus stop with a custom name (Home, Office, Plaza, etc.)
+- **🚏 Point-to-Point Search** — Select From + To → see **only direct buses** that serve both stops, sorted by wait time (solves the "many buses at one plaza" problem)
+- **⏱ Live ETA** — Real-time arrival from official KMB/LWB API
+- **🚏 Commute View** — Next buses from your Home bookmark
 - **🔍 Route Search** — Find any route and bookmark stops
-- **📱 Mobile Friendly** — Works great on iPhone & Android
+- **📱 Fully Mobile Optimized** — Excellent on iPhone & Android (larger selects, touch-friendly, auto-trigger)
 - **🌐 Multi-language** — English / 繁體中文
 - **⚡ Zero Build** — Just open `index.html`
 
@@ -52,29 +53,49 @@ Then open `http://localhost:8080` on your computer or phone (same Wi-Fi).
 
 ## 📖 How to Use
 
-### 1. Add Bookmarks (Home, Office, etc.)
+### 1. Add Bookmarks (Home, Office, Plaza, etc.)
 
 1. Open the app
 2. Go to **Bookmarks** tab → click **+ Add Bookmark**
 3. Search a route (e.g. `118`, `960`, `1A`)
 4. Select direction/service
-5. Choose a stop and give it a name (e.g. "Home", "Office")
-6. Repeat for up to 10 places
+5. Choose a stop and name it (e.g. "Festival Walk", "Home")
+6. Repeat for your frequent locations (max 10)
 
-### 2. Commute View (See Next Bus)
+**Tip:** Bookmark stops near plazas/malls you often use.
+
+### 2. Point-to-Point Planner (Main New Feature)
+
+1. Go to **Plan Trip** tab
+2. Choose your current **FROM** location
+3. Choose your **TO** destination
+4. Tap **🔍 Find Direct Buses...**
+5. Get a clean list of only the buses that go from From → To, **sorted by shortest wait time**
+
+This solves the common pain point: "There are many buses here — which one actually goes where I need?"
+
+### 3. Commute View
 
 1. Go to **Commute View** tab
 2. Select your **Home** bookmark
 3. (Optional) Select your **Office** bookmark
-4. The screen shows all incoming buses at your home stop, **sorted by shortest wait time**
+4. See next buses at home, sorted by wait time
 
-This answers the question: *"What’s the next bus I can take from home?"*
+### 3. Point-to-Point (New Core Feature)
 
-### 3. Live Updates
+1. Add bookmarks for common locations (e.g. "Festival Walk", "Home", "Office")
+2. Go to **Plan Trip** tab
+3. Select **FROM** and **TO**
+4. Tap **Find Direct Buses** — only routes that physically stop at both locations appear, sorted by shortest wait time
 
-- Bookmarks auto-refresh every 40 seconds
-- Click any bookmark card to see full arrival list
-- Pull-to-refresh works on mobile browsers
+**Perfect for busy plazas where 10+ buses stop but only a few go where you need.**
+
+### 4. Live Updates
+
+- Bookmarks & Plan Trip auto-refresh
+- All views update every 40 seconds
+- Click any result for full details
+- Fully touch-optimized for mobile browsers (add to Home Screen for app-like feel)
 
 ## 🗺 Data Source
 

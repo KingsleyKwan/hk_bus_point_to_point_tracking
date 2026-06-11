@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HK Bus Tracker • Bookmarks</title>
+    <title>HK Bus Point-to-Point Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.0.5</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.2</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -202,26 +202,28 @@
         <div id="tab-content-plan" class="hidden">
             <div class="max-w-2xl">
                 <h2 class="section-header font-semibold mb-1">Plan Trip • Point to Point</h2>
-                <p class="text-sm text-slate-500 mb-4">See buses from your origin sorted by waiting time. Same route number appears on separate lines if multiple departures.</p>
+                <p class="text-sm text-slate-500 mb-4">From any saved stop, see only buses that go to your destination. Sorted by shortest wait time. Perfect for plazas with many route options.</p>
                 
-                <div class="flex gap-3 mb-4">
+                <div class="flex flex-col sm:flex-row gap-4 mb-6">
                     <div class="flex-1">
-                        <div class="text-xs font-medium text-slate-500 mb-1">FROM (Origin)</div>
-                        <select id="plan-from" class="w-full border border-slate-300 px-4 py-2.5 rounded-3xl text-sm"></select>
+                        <div class="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">🚏 FROM (Origin)</div>
+                        <select id="plan-from" onchange="if(activeTab==='plan') updatePlanSelectors()" 
+                                class="w-full border border-slate-300 px-5 py-3.5 rounded-3xl text-base font-medium bg-white"></select>
                     </div>
                     <div class="flex-1">
-                        <div class="text-xs font-medium text-slate-500 mb-1">TO (Destination)</div>
-                        <select id="plan-to" class="w-full border border-slate-300 px-4 py-2.5 rounded-3xl text-sm"></select>
+                        <div class="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">🏁 TO (Destination)</div>
+                        <select id="plan-to" onchange="if(activeTab==='plan') updatePlanSelectors()" 
+                                class="w-full border border-slate-300 px-5 py-3.5 rounded-3xl text-base font-medium bg-white"></select>
                     </div>
                 </div>
                 
                 <button onclick="findPointToPointBuses()" 
                         class="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-3xl mb-4">
-                    Find Next Buses (sorted by arrival)
+                    🔍 Find Direct Buses to Destination (sorted by wait time)
                 </button>
                 
-                <div id="plan-results" class="bg-white border border-slate-200 rounded-3xl p-1 min-h-[200px]">
-                    <div class="p-8 text-center text-xs text-slate-400">Select your From and To stops above, then click Find.</div>
+                <div id="plan-results" class="bg-white border border-slate-200 rounded-3xl p-1 min-h-[260px] max-h-[420px] overflow-auto">
+                    <div class="p-8 text-center text-xs text-slate-400">Select your From and To stops above, then tap "Find Direct Buses".<br><span class="text-[10px]">Only shows buses that actually stop at both locations.</span></div>
                 </div>
             </div>
         </div>
@@ -346,7 +348,7 @@
 
                 return matches.map(r => ({
                     route: r.route,
-                    bound: r.bound === 'O' ? 'outbound' : 'inbound',
+                    bound: r.bound,
                     service_type: r.service_type,
                     orig: r.orig_tc || r.orig_en,
                     dest: r.dest_tc || r.dest_en
@@ -849,13 +851,20 @@
             const fromSel = document.getElementById('plan-from');
             const toSel = document.getElementById('plan-to');
             
-            fromSel.innerHTML = `<option value="">— Select origin —</option>`;
-            toSel.innerHTML = `<option value="">— Select destination —</option>`;
+            const currentFrom = fromSel.value;
+            const currentTo = toSel.value;
+            
+            fromSel.innerHTML = `<option value="">— Select origin stop —</option>`;
+            toSel.innerHTML = `<option value="">— Select destination stop (optional) —</option>`;
             
             bookmarks.forEach(bm => {
                 fromSel.appendChild(new Option(bm.name, bm.id));
                 toSel.appendChild(new Option(bm.name, bm.id));
             });
+            
+            // Restore previous selections
+            if (currentFrom) fromSel.value = currentFrom;
+            if (currentTo) toSel.value = currentTo;
         }
 
         async function findPointToPointBuses() {
@@ -871,23 +880,38 @@
             const fromBm = bookmarks.find(b => b.id === fromId);
             const toBm = toId ? bookmarks.find(b => b.id === toId) : null;
             
-            container.innerHTML = `<div class="p-5 text-xs text-slate-400">Loading buses from ${fromBm.name}...</div>`;
+            container.innerHTML = `<div class="p-5 text-xs text-slate-400">Finding buses from ${fromBm.name} that stop at ${toBm ? toBm.name : 'destination'}...</div>`;
             
             let allEtas = [];
             
             try {
-                // Fetch ETAs for all routes at origin
+                // Fetch ETAs for all routes at origin + filter those that reach the destination stop
                 for (const r of fromBm.routes) {
+                    // First check if this service actually stops at the TO bookmark
+                    let reachesDestination = true;
+                    if (toBm) {
+                        try {
+                            const routeStops = await fetchRouteStops(r.route, r.bound, r.service_type);
+                            const fromSeq = routeStops.find(s => String(s.stop) === String(fromBm.stopId))?.seq;
+                            const toSeq = routeStops.find(s => String(s.stop) === String(toBm.stopId))?.seq;
+                            reachesDestination = !!(fromSeq && toSeq && parseInt(fromSeq) < parseInt(toSeq));
+                        } catch (seqErr) {
+                            // If route-stop check fails, be optimistic (show the bus)
+                            console.warn('Could not verify route sequence for', r.route);
+                        }
+                    }
+
                     const etas = await fetchRouteEta(r.route, r.service_type);
                     etas.forEach(e => {
-                        if (e.stop == fromBm.stopId && e.eta) {
+                        if (e.stop == fromBm.stopId && e.eta && reachesDestination) {
                             allEtas.push({
                                 route: r.route,
                                 bound: r.bound,
                                 eta: e.eta,
                                 rm: e.rm || 99,
                                 dest: e.dest_tc || e.dest_en || '—',
-                                service_type: r.service_type
+                                service_type: r.service_type,
+                                reachesTo: reachesDestination
                             });
                         }
                     });
@@ -897,21 +921,31 @@
                 allEtas.sort((a, b) => a.rm - b.rm);
                 
                 if (!allEtas.length) {
-                    container.innerHTML = `<div class="p-5 text-xs text-amber-600">No upcoming buses at ${fromBm.name}.</div>`;
+                    let noBusMsg = toBm 
+                        ? `No upcoming buses from ${fromBm.name} go to ${toBm.name}. Try different stops or check back later.`
+                        : `No upcoming buses at ${fromBm.name}.`;
+                    container.innerHTML = `<div class="p-8 text-center text-amber-600 text-sm">${noBusMsg}</div>`;
                     return;
                 }
                 
-                let html = `<div class="px-1 pt-2 pb-1"><div class="px-4 text-[10px] text-emerald-600 font-medium mb-1">NEXT BUSES FROM ${fromBm.name.toUpperCase()} ${toBm ? '→ ' + toBm.name.toUpperCase() : ''} (sorted by wait time)</div>`;
+                let html = `<div class="px-1 pt-2 pb-1">`;
+                html += `<div class="px-4 text-[10px] text-emerald-600 font-medium mb-2">DIRECT BUSES FROM <span class="font-semibold">${fromBm.name}</span> → <span class="font-semibold">${toBm ? toBm.name : 'anywhere'}</span> (${allEtas.length} found, sorted by wait time)</div>`;
                 
                 allEtas.forEach(item => {
-                    const timeStr = item.rm <= 1 ? 'Arriving' : `${item.rm} min`;
+                    const timeStr = item.rm <= 1 ? 'Arriving now' : `${item.rm} min`;
+                    const boundLabel = (item.bound || '').toLowerCase() === 'outbound' || item.bound === 'O' ? '→' : '←';
                     html += `
-                        <div class="px-4 py-[6px] flex justify-between text-sm items-center border-t">
-                            <div class="flex items-center gap-x-3">
-                                <div class="font-mono text-lg font-semibold w-9 text-sky-600">${item.route}</div>
-                                <div class="text-xs text-slate-600">${item.dest}</div>
+                        <div class="px-4 py-3 flex justify-between items-center border-t hover:bg-slate-50 rounded-xl">
+                            <div class="flex items-center gap-x-4">
+                                <div>
+                                    <div class="font-mono text-2xl font-bold text-sky-600 tracking-tighter">${item.route}</div>
+                                    <div class="text-[10px] text-slate-400 -mt-1">${boundLabel} ${item.dest}</div>
+                                </div>
                             </div>
-                            <div class="font-semibold text-emerald-600 tabular-nums">${timeStr}</div>
+                            <div class="text-right">
+                                <div class="eta-badge font-semibold text-2xl text-emerald-600 tabular-nums leading-none">${item.rm <= 1 ? 'NOW' : item.rm}</div>
+                                <div class="text-[10px] text-emerald-500 -mt-1">min</div>
+                            </div>
                         </div>
                     `;
                 });
@@ -960,6 +994,12 @@
                 document.getElementById('tab-content-plan').classList.remove('hidden');
                 document.getElementById('tab-plan').classList.add('active', 'text-slate-700');
                 updatePlanSelectors();
+                // Auto-trigger if both selects have values (mobile friendly)
+                const fromVal = document.getElementById('plan-from').value;
+                const toVal = document.getElementById('plan-to').value;
+                if (fromVal) {
+                    setTimeout(findPointToPointBuses, 120);
+                }
             }
         }
 
