@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.7</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.8</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -367,8 +367,8 @@
         async function fetchRouteStops(route, bound, serviceType) {
             // The API is very picky about 'bound': must be "O" or "I" (not "outbound"/"inbound" or numbers)
             let apiBound = bound;
-            if (bound === 'outbound' || bound === 'O') apiBound = 'O';
-            if (bound === 'inbound' || bound === 'I') apiBound = 'I';
+            if (bound === 'outbound' || bound === 'O' || bound === 1) apiBound = 'O';
+            if (bound === 'inbound' || bound === 'I' || bound === 2) apiBound = 'I';
             
             const url = `${API_BASE}/route-stop/${route}/${apiBound}/${serviceType}`;
             try {
