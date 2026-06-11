@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.1</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.2</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -325,12 +325,20 @@
             const timeout = setTimeout(() => controller.abort(), timeoutMs);
             
             try {
-                const res = await fetch(url, { signal: controller.signal });
+                const res = await fetch(url, { 
+                    signal: controller.signal,
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
                 clearTimeout(timeout);
-                if (!res.ok) throw new Error('API error');
+                if (!res.ok) {
+                    const errorText = res.status === 403 ? 'CORS/Forbidden (try GitHub Pages or disable browser extensions)' : 'API error';
+                    throw new Error(`${errorText} (${res.status})`);
+                }
                 return await res.json();
             } catch (e) {
                 clearTimeout(timeout);
+                console.error(`apiFetch failed for ${url}:`, e.message || e);
                 throw e;
             }
         }
@@ -361,7 +369,10 @@
                     dest: r.dest_tc || r.dest_en
                 }));
             } catch (e) {
-                console.error('fetchRoute failed:', e);
+                console.error('fetchRoute failed:', e.message || e);
+                if (e.message && e.message.includes('CORS')) {
+                    console.warn('CORS error — the KMB API blocks direct fetches from http://localhost. Use https://kingsleykwan.github.io/hk_bus_point_to_point_tracking/ or a CORS proxy for local dev.');
+                }
                 return [];
             }
         }
@@ -539,7 +550,11 @@
             try {
                 const services = await fetchRoute(input);
                 if (!services.length) {
-                    container.innerHTML = `<div class="text-xs text-amber-600 px-1">Route not found or not currently operating. Try 118, 960, 1A, 83K...</div>`;
+                    let msg = 'Route not found or not currently operating. Try 118, 960, 1A, 83K...';
+                    if (services === null || (Array.isArray(services) && services.length === 0 && window.location.hostname === 'localhost')) {
+                        msg = 'CORS error from localhost. The official API blocks http://localhost:8080.<br>Use the live site: <a href="https://kingsleykwan.github.io/hk_bus_point_to_point_tracking/" class="underline">kingsleykwan.github.io/hk_bus...</a>';
+                    }
+                    container.innerHTML = `<div class="text-xs text-amber-600 px-1">${msg}</div>`;
                     return;
                 }
                 
@@ -581,7 +596,7 @@
                 console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}): ${stops.length} stops loaded`);
 
                 if (!stops || stops.length === 0) {
-                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">Common for service 2 on 83K (try service 1 instead). API often returns 422 for certain combos.</span></div>`;
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">Common for service 2 on 83K / inbound 80K (try service 1 + outbound). API often returns 422.</span></div>`;
                     return;
                 }
 
