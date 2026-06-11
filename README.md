@@ -105,7 +105,7 @@ All real-time data comes from the official Hong Kong government open data API:
 - **Citybus / NWFB** — `https://data.etabus.gov.hk/v1/transport/citybus` (auto-detected by route number)
 - No API key required
 - Updates every 30–60 seconds
-- **Multi-company support added in v3.0** — the app now automatically tries both operators and falls back when one returns 422 or no data.
+- **Full HK bus support (v3.2+)** — searches *all* HK bus numbers (80K, 83K, 1, 2, 118, 960, 1A, etc.) via smart company detection (KMB/LWB, Citybus, NWFB) + fallback on 422 errors.
 
 ## 📁 Project Structure
 
