@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.5</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.6</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -341,10 +341,15 @@
                 const data = await apiFetch(`${API_BASE}/route`);
                 if (!data.data) return [];
 
-                const upperRoute = routeNo.toUpperCase();
+                const upperRoute = routeNo.toUpperCase().trim();
                 const matches = data.data.filter(r => 
                     r.route.toUpperCase() === upperRoute
                 );
+
+                if (matches.length === 0) {
+                    console.warn(`No matches found for route "${routeNo}". Available similar routes:`, 
+                        data.data.filter(r => r.route.includes(routeNo) || routeNo.includes(r.route)).slice(0,5).map(r=>r.route));
+                }
 
                 return matches.map(r => ({
                     route: r.route,
@@ -353,7 +358,8 @@
                     orig: r.orig_tc || r.orig_en,
                     dest: r.dest_tc || r.dest_en
                 }));
-            } catch (_) {
+            } catch (e) {
+                console.error('fetchRoute failed:', e);
                 return [];
             }
         }
@@ -517,7 +523,7 @@
             try {
                 const services = await fetchRoute(input);
                 if (!services.length) {
-                    container.innerHTML = `<div class="text-xs text-amber-600 px-1">Route not found or not currently operating. Try 118, 960, 1A...</div>`;
+                    container.innerHTML = `<div class="text-xs text-amber-600 px-1">Route not found or not currently operating. Try 118, 960, 1A, 83K...</div>`;
                     return;
                 }
                 
@@ -744,7 +750,7 @@
             try {
                 const services = await fetchRoute(val);
                 if (!services.length) {
-                    container.innerHTML = `<div class="text-sm px-2 text-amber-600">No matching route found (or not operating today). Try 118, 960, 1A, etc.</div>`;
+                    container.innerHTML = `<div class="text-sm px-2 text-amber-600">No matching route found (or not operating today). Try 118, 960, 1A, 83K...</div>`;
                     return;
                 }
                 
