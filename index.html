@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v3.6</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v3.7</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • All HK Bus Companies (KMB/LWB, Citybus, NWFB)</p>
                 </div>
             </div>
@@ -1013,8 +1013,8 @@
                     if (toBm) {
                         try {
                             const routeStops = await fetchRouteStops(r.route, r.bound, r.service_type, r.company);
-                            const fromSeq = routeStops.find(s => String(s.stop) === String(fromBm.stopId))?.seq;
-                            const toSeq = routeStops.find(s => String(s.stop) === String(toBm.stopId))?.seq;
+                            const fromSeq = routeStops.find(s => String(s.stop) === String(fromBm.stopId) || String(s.stop || '').includes(String(fromBm.stopId).slice(-6)))?.seq;
+                            const toSeq = routeStops.find(s => String(s.stop) === String(toBm.stopId) || String(s.stop || '').includes(String(toBm.stopId).slice(-6)))?.seq;
                             reachesDestination = !!(fromSeq && toSeq && parseInt(fromSeq) < parseInt(toSeq));
                             if (!reachesDestination && routeStops.length > 0) {
                                 console.log(`Route ${r.route} does not go from ${fromBm.stopId} to ${toBm.stopId} (seq check failed)`);
@@ -1050,7 +1050,7 @@
                 
                 if (!allEtas.length) {
                     let noBusMsg = toBm 
-                        ? `No upcoming buses from ${fromBm.name} go to ${toBm.name}. Try different stops or check back later.`
+                        ? `No upcoming buses from ${fromBm.name} go to ${toBm.name}. (Try outbound direction, service 1, or different stops.)`
                         : `No upcoming buses at ${fromBm.name}.`;
                     container.innerHTML = `<div class="p-8 text-center text-amber-600 text-sm">${noBusMsg}</div>`;
                     return;
