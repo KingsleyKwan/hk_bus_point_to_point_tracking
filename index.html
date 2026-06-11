@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.9</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.0</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -366,8 +366,8 @@
 
         async function fetchRouteStops(route, bound, serviceType) {
             // The API is very picky about 'bound': must be "O" or "I" (not "outbound"/"inbound" or numbers)
-            // Normalize bound for the very strict KMB API
-            let apiBound = String(bound || '').toUpperCase();
+            // Normalize bound for the very strict KMB API. Some combos (e.g. 80K/I/1) return 422 "Invalid direction."
+            let apiBound = String(bound || '').toUpperCase().trim();
             if (apiBound === 'OUTBOUND' || apiBound === 'O' || apiBound === '1') apiBound = 'O';
             if (apiBound === 'INBOUND' || apiBound === 'I' || apiBound === '2') apiBound = 'I';
             
@@ -378,7 +378,8 @@
                 console.log(`fetchRouteStops(${route}, ${apiBound}, ${serviceType}) returned ${data.length} stops`);
                 return data;
             } catch (e) {
-                console.error(`fetchRouteStops failed for ${route}/${apiBound}/${serviceType}:`, e);
+                // Many valid-looking combos return 422 "Invalid direction." (e.g. 80K/I/1, 83K/O/2). Treat gracefully.
+                console.warn(`fetchRouteStops failed for ${route}/${apiBound}/${serviceType}:`, e.message || e);
                 return [];
             }
         }
@@ -570,10 +571,10 @@
             
             try {
                 const stops = await fetchRouteStops(svc.route, svc.bound, svc.service_type);
-                console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}):`, stops.length, 'stops loaded');
+                console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}): ${stops.length} stops loaded`);
 
                 if (!stops || stops.length === 0) {
-                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br>This direction may not be operating or has no data today.</div>`;
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">This direction/service may not be operating today or API rejected the bound (common for 80K/I/1, 83K/O/2).</span></div>`;
                     return;
                 }
 
@@ -616,8 +617,8 @@
                     }
                 }
             } catch (e) {
-                console.error('selectRouteForStops failed for', svc.route, svc.bound, svc.service_type, e);
-                container.innerHTML = `<div class="p-4 text-xs text-red-400">Failed to load stops for ${svc.route}.<br><span class="text-[10px]">Check console (F12) for details. API may be temporarily unavailable.</span></div>`;
+                console.error('selectRouteForStops failed for', svc.route, svc.bound, svc.service_type, ':', e);
+                container.innerHTML = `<div class="p-4 text-xs text-red-400">Failed to load stops for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">API error (common). Check console (F12). Try other services/directions.</span></div>`;
             }
         }
 
@@ -942,7 +943,7 @@
             try {
                 // Fetch ETAs for all routes at origin + filter those that reach the destination stop
                 for (const r of fromBm.routes) {
-                    // First check if this service actually stops at the TO bookmark
+                    // First check if this service actually stops at the TO bookmark (in correct order)
                     let reachesDestination = true;
                     if (toBm) {
                         try {
@@ -950,9 +951,13 @@
                             const fromSeq = routeStops.find(s => String(s.stop) === String(fromBm.stopId))?.seq;
                             const toSeq = routeStops.find(s => String(s.stop) === String(toBm.stopId))?.seq;
                             reachesDestination = !!(fromSeq && toSeq && parseInt(fromSeq) < parseInt(toSeq));
+                            if (!reachesDestination && routeStops.length > 0) {
+                                console.log(`Route ${r.route} does not go from ${fromBm.stopId} to ${toBm.stopId} (seq check failed)`);
+                            }
                         } catch (seqErr) {
-                            // If route-stop check fails, be optimistic (show the bus)
-                            console.warn('Could not verify route sequence for', r.route);
+                            console.warn('Could not verify route sequence for', r.route, seqErr.message || seqErr);
+                            // Be optimistic on API errors (many 422s)
+                            reachesDestination = true;
                         }
                     }
 

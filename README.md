@@ -135,6 +135,8 @@ Built with ❤️ for Hong Kong commuters
 Data: Transport Department (HKSAR)  
 Zero backend • Zero build • Works on any device
 
+**Note**: The Tailwind CDN warning in browser console is expected for this single-file demo (production apps should use the CLI). It does not affect functionality.
+
 ---
 
 ### Need Help?
