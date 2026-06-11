@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.4</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.5</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -551,31 +551,54 @@
             
             try {
                 const stops = await fetchRouteStops(svc.route, svc.bound, svc.service_type);
+                console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}):`, stops.length, 'stops loaded');
+
+                if (!stops || stops.length === 0) {
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for this route/direction.<br>Route may not be operating today.</div>`;
+                    return;
+                }
 
                 container.innerHTML = `<div class="divide-y" id="modal-stops-container"></div>`;
                 const listContainer = document.getElementById('modal-stops-container');
 
                 for (const s of stops.slice(0, 25)) {
-                    const stopDetail = await fetchStop(s.stop);
-                    const name = stopDetail.name_tc || stopDetail.name_en || 'Unknown stop';
-                    const row = document.createElement('div');
-                    row.className = 'px-4 py-[9px] stop-row cursor-pointer flex justify-between text-sm';
-                    row.innerHTML = `
-                        <div>${name}</div>
-                        <div class="font-mono text-[10px] text-slate-400">${s.stop}</div>
-                    `;
-                    row.onclick = () => {
-                        currentSelectedStop = { stopId: s.stop, stopName: name, route: svc };
-                        const nameInput = document.getElementById('bookmark-name');
-                        if (!nameInput.value) {
-                            nameInput.value = name.length > 12 ? name.substring(0, 11) : name;
-                        }
-                    };
-                    listContainer.appendChild(row);
+                    try {
+                        const stopDetail = await fetchStop(s.stop);
+                        const name = stopDetail.name_tc || stopDetail.name_en || 'Unknown stop';
+                        const row = document.createElement('div');
+                        row.className = 'px-4 py-[9px] stop-row cursor-pointer flex justify-between text-sm';
+                        row.innerHTML = `
+                            <div>${name}</div>
+                            <div class="font-mono text-[10px] text-slate-400">${s.stop}</div>
+                        `;
+                        row.onclick = () => {
+                            currentSelectedStop = { stopId: s.stop, stopName: name, route: svc };
+                            const nameInput = document.getElementById('bookmark-name');
+                            if (!nameInput.value) {
+                                nameInput.value = name.length > 12 ? name.substring(0, 11) : name;
+                            }
+                        };
+                        listContainer.appendChild(row);
+                    } catch (stopErr) {
+                        console.warn('Failed to load name for stop', s.stop);
+                        // Still show the stop code
+                        const row = document.createElement('div');
+                        row.className = 'px-4 py-[9px] stop-row cursor-pointer flex justify-between text-sm';
+                        row.innerHTML = `
+                            <div>Stop ${s.stop}</div>
+                            <div class="font-mono text-[10px] text-slate-400">${s.stop}</div>
+                        `;
+                        row.onclick = () => {
+                            currentSelectedStop = { stopId: s.stop, stopName: `Stop ${s.stop}`, route: svc };
+                            const nameInput = document.getElementById('bookmark-name');
+                            if (!nameInput.value) nameInput.value = `Stop ${s.stop}`;
+                        };
+                        listContainer.appendChild(row);
+                    }
                 }
             } catch (e) {
                 console.error('selectRouteForStops failed for', svc.route, svc.bound, svc.service_type, e);
-                container.innerHTML = `<div class="p-4 text-xs text-red-400">Failed to load stops.<br><span class="text-[10px]">Route ${svc.route} may not be operating or API issue.</span></div>`;
+                container.innerHTML = `<div class="p-4 text-xs text-red-400">Failed to load stops for ${svc.route}.<br><span class="text-[10px]">Check console (F12) for details. API may be temporarily unavailable.</span></div>`;
             }
         }
 
