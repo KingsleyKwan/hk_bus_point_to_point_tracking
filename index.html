@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.2</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.3</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -561,9 +561,10 @@
                 modalCurrentRoute = input;
                 currentRouteData = services;
                 
-                // Auto-suggest trying service 1 first for routes like 83K that have multiple services
-                if (services.some(s => s.service_type === 2 || String(s.service_type) === '2')) {
-                    console.log('Note: Route has multiple services. Service 2 often fails route-stop API — prefer service 1.');
+                // Suggest alternatives for routes that frequently fail route-stop API
+                const hasMultiService = services.some(s => String(s.service_type) !== '1');
+                if (hasMultiService || input === '86') {
+                    console.log(`Note for ${input}: Some bound/service combos fail with 422. Try the opposite bound (O ↔ I) or alternate route (e.g. 86A).`);
                 }
                 
                 let html = '';
@@ -596,7 +597,7 @@
                 console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}): ${stops.length} stops loaded`);
 
                 if (!stops || stops.length === 0) {
-                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">Common for service 2 on 83K / inbound 80K (try service 1 + outbound). API often returns 422.</span></div>`;
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">This direction may not be operating today or API rejected the request (common). Try the other bound or a different route like 86A.</span></div>`;
                     return;
                 }
 
