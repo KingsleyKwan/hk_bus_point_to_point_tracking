@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.3</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.4</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -359,7 +359,12 @@
         }
 
         async function fetchRouteStops(route, bound, serviceType) {
-            const url = `${API_BASE}/route-stop/${route}/${bound}/${serviceType}`;
+            // The API is very picky about 'bound': must be "O" or "I" (not "outbound"/"inbound" or numbers)
+            let apiBound = bound;
+            if (bound === 'outbound' || bound === 'O') apiBound = 'O';
+            if (bound === 'inbound' || bound === 'I') apiBound = 'I';
+            
+            const url = `${API_BASE}/route-stop/${route}/${apiBound}/${serviceType}`;
             const res = await apiFetch(url);
             return res.data || [];
         }
@@ -569,7 +574,8 @@
                     listContainer.appendChild(row);
                 }
             } catch (e) {
-                container.innerHTML = `<div class="p-4 text-xs text-red-400">Failed to load stops</div>`;
+                console.error('selectRouteForStops failed for', svc.route, svc.bound, svc.service_type, e);
+                container.innerHTML = `<div class="p-4 text-xs text-red-400">Failed to load stops.<br><span class="text-[10px]">Route ${svc.route} may not be operating or API issue.</span></div>`;
             }
         }
 
