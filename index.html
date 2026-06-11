@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.6</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.7</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -371,13 +371,25 @@
             if (bound === 'inbound' || bound === 'I') apiBound = 'I';
             
             const url = `${API_BASE}/route-stop/${route}/${apiBound}/${serviceType}`;
-            const res = await apiFetch(url);
-            return res.data || [];
+            try {
+                const res = await apiFetch(url);
+                const data = res.data || [];
+                console.log(`fetchRouteStops(${route}, ${apiBound}, ${serviceType}) returned ${data.length} stops`);
+                return data;
+            } catch (e) {
+                console.error(`fetchRouteStops failed for ${route}/${apiBound}/${serviceType}:`, e);
+                return [];
+            }
         }
 
         async function fetchStop(stopId) {
-            const res = await apiFetch(`${API_BASE}/stop/${stopId}`);
-            return res.data;
+            try {
+                const res = await apiFetch(`${API_BASE}/stop/${stopId}`);
+                return res.data;
+            } catch (e) {
+                console.error(`fetchStop(${stopId}) failed:`, e);
+                return { name_tc: `Stop ${stopId}`, name_en: `Stop ${stopId}` };
+            }
         }
 
         async function fetchRouteEta(route, serviceType) {
