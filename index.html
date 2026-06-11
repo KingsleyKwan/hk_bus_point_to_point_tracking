@@ -395,13 +395,7 @@
             } catch (e) {
                 console.error('fetchRoute failed:', e.message || e);
                 if (e.message && e.message.includes('CORS')) {
-                    console.warn('CORS error — the KMB API blocks direct fetches from http://localhost. Use https://kingsleykwan.github.io/hk_bus_point_to_point_tracking/ or a CORS proxy for local dev.');
-                }
-                return [];
-            }
-                console.error('fetchRoute failed:', e.message || e);
-                if (e.message && e.message.includes('CORS')) {
-                    console.warn('CORS error — the KMB API blocks direct fetches from http://localhost. Use https://kingsleykwan.github.io/hk_bus_point_to_point_tracking/ or a CORS proxy for local dev.');
+                    console.warn('CORS error — the KMB API blocks direct fetches from http://localhost. Use the live GitHub Pages site or a CORS proxy for local dev.');
                 }
                 return [];
             }
@@ -620,7 +614,9 @@
         }
 
         async function selectRouteForStops(index) {
-            const svc = currentRouteData[index];
+            let svc = currentRouteData[index];
+            if (!svc) svc = {};
+            if (!svc.company) svc.company = getCompanyForRoute(svc.route || '');
             const container = document.getElementById('modal-stop-list');
             
             document.getElementById('modal-step-1').classList.add('hidden');
@@ -857,9 +853,10 @@
                 document.getElementById('modal-step-1').classList.add('hidden');
                 document.getElementById('modal-step-2').classList.remove('hidden');
                 
-                const svc = services[idx];
+                let svc = services[idx];
                 currentRouteData = services;
                 modalCurrentRoute = svc.route;
+                if (!svc.company) svc.company = getCompanyForRoute(svc.route || '');
                 
                 // auto load stops
                 (async () => {
