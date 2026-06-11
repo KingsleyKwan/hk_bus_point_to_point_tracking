@@ -407,11 +407,10 @@
             const company = companyHint || getCompanyForRoute(route);
             const base = company === 'ctb' ? API_BASE_CTB : API_BASE_KMB;
 
-            // The API is very picky about 'bound' + service_type combos (many 422 "Invalid direction." even for real routes)
-            // Normalize bound; we let the try/catch handle the rest gracefully.
-            let apiBound = String(bound || '').toUpperCase().trim();
-            if (apiBound === 'OUTBOUND' || apiBound === 'O' || apiBound === '1') apiBound = 'O';
-            if (apiBound === 'INBOUND' || apiBound === 'I' || apiBound === '2') apiBound = 'I';
+            // API requires exact 'outbound'/'inbound' (not O/I) per official docs and testing. Many combos still return 0 stops or 422.
+            let apiBound = String(bound || '').toLowerCase().trim();
+            if (apiBound === 'o' || apiBound === 'outbound' || apiBound === '1') apiBound = 'outbound';
+            if (apiBound === 'i' || apiBound === 'inbound' || apiBound === '2') apiBound = 'inbound';
             
             const url = `${base}/route-stop/${route}/${apiBound}/${serviceType}`;
             try {
@@ -420,7 +419,6 @@
                 console.log(`fetchRouteStops(${route}, ${apiBound}, ${serviceType}) [${company}] returned ${data.length} stops`);
                 return data;
             } catch (e) {
-                // Many valid-looking combos return 422 "Invalid direction." (e.g. 80K/I/1, 83K/O/2). Treat gracefully.
                 console.warn(`fetchRouteStops failed for ${route}/${apiBound}/${serviceType} [${company}]:`, e.message || e);
                 return [];
             }
@@ -445,7 +443,7 @@
                 const res = await apiFetch(url);
                 return res.data || [];
             } catch (e) {
-                console.error(`fetchRouteEta failed for ${route}/${serviceType} [${company}]:`, e);
+                console.error(`fetchRouteEta failed for ${route}/${serviceType} [${company}]:`, e.message || e);
                 return [];
             }
         }
@@ -593,10 +591,10 @@
                 modalCurrentRoute = input;
                 currentRouteData = services;
                 
-                // Suggest alternatives for routes that frequently fail route-stop API
+                // Note on common API flakiness (many 0-stop or 422 results even for valid routes)
                 const hasMultiService = services.some(s => String(s.service_type) !== '1');
-                if (hasMultiService || input === '86' || input === '83K') {
-                    console.log(`Note for ${input}: Some bound/service combos fail with 422 (esp. service 2). Try the opposite bound (O ↔ I) or alternate route (e.g. 86A).`);
+                if (hasMultiService || ['83K','80K','86'].includes(input)) {
+                    console.log(`Note for ${input}: Many bound/service_type combos return 0 stops or 422. The app falls back gracefully. Try opposite direction if stops fail.`);
                 }
                 
                 let html = '';
@@ -631,10 +629,10 @@
                 console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}): ${stops.length} stops loaded`);
 
                 if (!stops || stops.length === 0) {
-                    let suggestion = 'Try the other bound (O ↔ I) or a different route like 86A.';
-                    if (svc.route === '83K' && (svc.service_type === 2 || svc.service_type == 2)) suggestion = 'Service 2 on 83K often fails — try service 1 instead.';
-                    if (svc.route === '80K' && svc.bound === 'I') suggestion = 'Inbound on 80K often fails — try outbound instead.';
-                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">${suggestion} API commonly returns 422 for these combos.</span></div>`;
+                    let suggestion = 'Try opposite direction (outbound ↔ inbound) or another route. Many combos return no data.';
+                    if (svc.route === '83K' && String(svc.service_type) === '2') suggestion = 'Service 2 on 83K frequently has no stops — use service 1.';
+                    if ((svc.route === '80K' || svc.route === '83K') && String(svc.bound || '').toLowerCase().includes('in')) suggestion = 'Inbound often has limited data — try outbound.';
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">${suggestion}</span></div>`;
                     return;
                 }
 
