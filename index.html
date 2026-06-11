@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.0</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.1</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -349,6 +349,8 @@
                 if (matches.length === 0) {
                     console.warn(`No matches found for route "${routeNo}". Available similar routes:`, 
                         data.data.filter(r => r.route.includes(routeNo) || routeNo.includes(r.route)).slice(0,5).map(r=>r.route));
+                } else {
+                    console.log(`Found ${matches.length} service(s) for ${routeNo}:`, matches.map(m => `${m.route} ${m.bound} (svc ${m.service_type})`));
                 }
 
                 return matches.map(r => ({
@@ -365,8 +367,8 @@
         }
 
         async function fetchRouteStops(route, bound, serviceType) {
-            // The API is very picky about 'bound': must be "O" or "I" (not "outbound"/"inbound" or numbers)
-            // Normalize bound for the very strict KMB API. Some combos (e.g. 80K/I/1) return 422 "Invalid direction."
+            // The API is very picky about 'bound' + service_type combos (many 422 "Invalid direction." even for real routes)
+            // Normalize bound; we let the try/catch handle the rest gracefully.
             let apiBound = String(bound || '').toUpperCase().trim();
             if (apiBound === 'OUTBOUND' || apiBound === 'O' || apiBound === '1') apiBound = 'O';
             if (apiBound === 'INBOUND' || apiBound === 'I' || apiBound === '2') apiBound = 'I';
@@ -544,6 +546,11 @@
                 modalCurrentRoute = input;
                 currentRouteData = services;
                 
+                // Auto-suggest trying service 1 first for routes like 83K that have multiple services
+                if (services.some(s => s.service_type === 2 || String(s.service_type) === '2')) {
+                    console.log('Note: Route has multiple services. Service 2 often fails route-stop API — prefer service 1.');
+                }
+                
                 let html = '';
                 services.forEach((svc, idx) => {
                     html += `
@@ -574,7 +581,7 @@
                 console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}): ${stops.length} stops loaded`);
 
                 if (!stops || stops.length === 0) {
-                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">This direction/service may not be operating today or API rejected the bound (common for 80K/I/1, 83K/O/2).</span></div>`;
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">Common for service 2 on 83K (try service 1 instead). API often returns 422 for certain combos.</span></div>`;
                     return;
                 }
 
