@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.3</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v2.4</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -563,8 +563,8 @@
                 
                 // Suggest alternatives for routes that frequently fail route-stop API
                 const hasMultiService = services.some(s => String(s.service_type) !== '1');
-                if (hasMultiService || input === '86') {
-                    console.log(`Note for ${input}: Some bound/service combos fail with 422. Try the opposite bound (O ↔ I) or alternate route (e.g. 86A).`);
+                if (hasMultiService || input === '86' || input === '83K') {
+                    console.log(`Note for ${input}: Some bound/service combos fail with 422 (esp. service 2). Try the opposite bound (O ↔ I) or alternate route (e.g. 86A).`);
                 }
                 
                 let html = '';
@@ -597,7 +597,9 @@
                 console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}): ${stops.length} stops loaded`);
 
                 if (!stops || stops.length === 0) {
-                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">This direction may not be operating today or API rejected the request (common). Try the other bound or a different route like 86A.</span></div>`;
+                    let suggestion = 'Try the other bound (O ↔ I) or a different route like 86A.';
+                    if (svc.route === '83K' && svc.service_type === 2) suggestion = 'Service 2 on 83K often fails — try service 1 instead.';
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br><span class="text-[10px]">${suggestion} API commonly returns 422 for these combos.</span></div>`;
                     return;
                 }
 
