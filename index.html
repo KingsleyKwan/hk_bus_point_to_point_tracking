@@ -87,7 +87,7 @@
                     <span class="text-white text-2xl">🚌</span>
                 </div>
                 <div>
-                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.8</span></h1>
+                    <h1 class="font-semibold text-2xl tracking-tight">HK Bus <span class="text-xs font-mono text-sky-600 align-super">v1.9</span></h1>
                     <p class="text-[10px] text-slate-500 -mt-1">Real-time • KMB &amp; LWB</p>
                 </div>
             </div>
@@ -366,9 +366,10 @@
 
         async function fetchRouteStops(route, bound, serviceType) {
             // The API is very picky about 'bound': must be "O" or "I" (not "outbound"/"inbound" or numbers)
-            let apiBound = bound;
-            if (bound === 'outbound' || bound === 'O' || bound === 1) apiBound = 'O';
-            if (bound === 'inbound' || bound === 'I' || bound === 2) apiBound = 'I';
+            // Normalize bound for the very strict KMB API
+            let apiBound = String(bound || '').toUpperCase();
+            if (apiBound === 'OUTBOUND' || apiBound === 'O' || apiBound === '1') apiBound = 'O';
+            if (apiBound === 'INBOUND' || apiBound === 'I' || apiBound === '2') apiBound = 'I';
             
             const url = `${API_BASE}/route-stop/${route}/${apiBound}/${serviceType}`;
             try {
@@ -572,7 +573,7 @@
                 console.log(`Route stops for ${svc.route} (${svc.bound}, service ${svc.service_type}):`, stops.length, 'stops loaded');
 
                 if (!stops || stops.length === 0) {
-                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for this route/direction.<br>Route may not be operating today.</div>`;
+                    container.innerHTML = `<div class="p-4 text-xs text-amber-600">No stops found for ${svc.route} ${svc.bound} (service ${svc.service_type}).<br>This direction may not be operating or has no data today.</div>`;
                     return;
                 }
 
