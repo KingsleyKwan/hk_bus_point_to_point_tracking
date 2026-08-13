@@ -1,1 +1,119 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>HK Bus Point-to-Point Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+body{font-family:'Inter','Noto Sans TC',system-ui,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+.nav-tab{position:relative}.nav-tab.active:after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:#0ea5e9}
+#plan-map{height:42vh;min-height:260px;width:100%;z-index:1;border-radius:16px;overflow:hidden}
+@media(min-width:768px){#plan-map{height:380px}}
+.leaflet-control-attribution{font-size:9px!important}
+.mode-btn.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+.bottom-sheet{max-height:48vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.result-card:active{background:#f1f5f9}
+</style>
+</head>
+<body class="bg-slate-50">
+<header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+<div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
+<div class="flex items-center gap-x-2.5">
+<div class="w-9 h-9 bg-sky-500 rounded-2xl flex items-center justify-center"><span class="text-white text-xl">🚌</span></div>
+<div><h1 class="font-semibold text-lg tracking-tight leading-tight">HK Bus <span class="text-[10px] font-mono text-sky-600 align-super">v4.1.1</span></h1>
+<p class="text-[9px] text-slate-500 -mt-0.5">Map P2P • Fares • Adjustable radius</p></div></div>
+<div class="flex items-center gap-x-2">
+<div class="flex bg-slate-100 rounded-3xl p-0.5 text-sm">
+<button onclick="setLang('tc')" id="lang-tc" class="px-2.5 py-1 rounded-3xl text-xs font-medium">繁</button>
+<button onclick="setLang('en')" id="lang-en" class="px-2.5 py-1 rounded-3xl text-xs font-medium bg-white shadow">EN</button>
+</div>
+<div class="text-[10px] px-2.5 py-1 bg-slate-100 rounded-3xl text-slate-500 flex items-center gap-x-1">
+<div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div><span id="status-text">Live</span></div></div></div></header>
+
+<div class="max-w-screen-xl mx-auto px-4 pt-4 pb-24">
+<div class="flex gap-x-0.5 mb-4 border-b overflow-x-auto">
+<button onclick="switchTab('plan')" id="tab-plan" class="nav-tab active px-4 py-2.5 text-sm font-semibold text-slate-700 flex items-center gap-x-1.5 whitespace-nowrap"><span>🗺️</span> <span>Plan Trip</span></button>
+<button onclick="switchTab('bookmarks')" id="tab-bookmarks" class="nav-tab px-4 py-2.5 text-sm font-semibold text-slate-500 flex items-center gap-x-1.5 whitespace-nowrap"><span>📌</span> <span>Bookmarks</span><span id="bookmark-count" class="ml-0.5 text-[10px] font-mono bg-sky-100 text-sky-700 px-1.5 py-px rounded">0/10</span></button>
+<button onclick="switchTab('search')" id="tab-search" class="nav-tab px-4 py-2.5 text-sm font-semibold text-slate-500 flex items-center gap-x-1.5 whitespace-nowrap"><span>🔍</span> <span>Search</span></button>
+<button onclick="switchTab('commute')" id="tab-commute" class="nav-tab px-4 py-2.5 text-sm font-semibold text-slate-500 flex items-center gap-x-1.5 whitespace-nowrap"><span>🚏</span> <span>Commute</span></button>
+</div>
+
+<div id="tab-content-plan">
+<div class="mb-3"><h2 class="font-semibold text-slate-800 text-base">Point to Point</h2>
+<p class="text-xs text-slate-500 mt-0.5">Tap map to set Start & End • Finds buses near both points</p></div>
+<div class="flex gap-2 mb-2">
+<button id="mode-start" onclick="setMapMode('start')" class="mode-btn active flex-1 py-2.5 text-sm font-medium border-2 border-sky-500 rounded-2xl bg-sky-500 text-white">🟢 Start</button>
+<button id="mode-end" onclick="setMapMode('end')" class="mode-btn flex-1 py-2.5 text-sm font-medium border-2 border-slate-300 rounded-2xl text-slate-600">🔴 End</button>
+<button onclick="useMyLocation()" class="px-3 py-2.5 text-sm font-medium border-2 border-slate-300 rounded-2xl text-slate-600">📍</button>
+</div>
+<div class="flex items-center gap-2 mb-3 text-xs">
+<span class="text-slate-500 whitespace-nowrap">Search radius:</span>
+<div class="flex bg-slate-100 rounded-xl p-0.5 flex-1">
+<button onclick="setRadius(100)" id="radius-100" class="radius-btn flex-1 py-1.5 rounded-lg font-medium text-slate-600">100m</button>
+<button onclick="setRadius(200)" id="radius-200" class="radius-btn active flex-1 py-1.5 rounded-lg font-medium bg-white shadow text-sky-600">200m</button>
+<button onclick="setRadius(300)" id="radius-300" class="radius-btn flex-1 py-1.5 rounded-lg font-medium text-slate-600">300m</button>
+</div></div>
+<div id="plan-map" class="mb-3 shadow-sm border border-slate-200"></div>
+<div id="plan-status" class="text-xs text-slate-500 mb-3 px-1">Tap the map to place <strong>Start</strong> point first.</div>
+<button id="find-buses-btn" onclick="findGeoBuses()" disabled class="w-full py-3.5 bg-slate-300 text-white font-semibold rounded-2xl mb-4 text-base disabled:opacity-70 transition">🔍 Find Buses</button>
+<div id="plan-results" class="bottom-sheet bg-white border border-slate-200 rounded-2xl overflow-hidden">
+<div class="p-6 text-center text-xs text-slate-400">Place Start and End points on the map, then tap “Find Buses”.<br><span class="text-[10px]">Shows arrival time + adult full fare.</span></div>
+</div></div>
+
+<div id="tab-content-bookmarks" class="hidden"><div class="p-4 text-slate-500 text-sm">Bookmarks tab (use Plan Trip for now)</div></div>
+<div id="tab-content-search" class="hidden"><div class="p-4 text-slate-500 text-sm">Search tab</div></div>
+<div id="tab-content-commute" class="hidden"><div class="p-4 text-slate-500 text-sm">Commute tab</div></div>
+</div>
+
+<div id="stop-detail-modal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-end md:items-center justify-center">
+<div class="bg-white w-full md:w-[420px] md:rounded-3xl rounded-t-3xl p-5">
+<div class="flex justify-between items-start mb-3"><div><div id="detail-route" class="font-mono text-2xl font-bold text-sky-600"></div><div id="detail-stop-name" class="text-sm text-slate-600"></div><div id="detail-eta" class="text-emerald-600 font-semibold"></div></div>
+<button onclick="closeStopDetail()" class="text-2xl text-slate-400">×</button></div>
+<div id="detail-mini-map" style="height:220px;border-radius:12px" class="mb-3"></div>
+<button onclick="closeStopDetail()" class="w-full py-2.5 bg-slate-900 text-white rounded-2xl text-sm">Close</button>
+</div></div>
+
+<div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-5 py-3 rounded-3xl shadow-xl"></div>
+
+<script>
+const API_BASE_KMB='https://data.etabus.gov.hk/v1/transport/kmb';
+let NEARBY_RADIUS_M=200,MAX_NEARBY_START_STOPS=6;
+let bookmarks=JSON.parse(localStorage.getItem('hkbus_bookmarks')||'[]');
+let currentLang=localStorage.getItem('hkbus_lang')||'en';
+let activeTab='plan',map=null,detailMap=null,mapMode='start';
+let startLatLng=null,endLatLng=null,startMarker=null,endMarker=null,startEndLine=null,walkLine=null;
+let allStops=null,stopsLoaded=false,fareMap={},faresLoaded=false;
+
+function t(tc,en){return currentLang==='tc'?tc:en}
+function showToast(msg,isError){const toast=document.getElementById('toast');toast.textContent=msg;toast.className='fixed bottom-5 left-1/2 -translate-x-1/2 px-5 py-3 rounded-3xl shadow-xl text-sm '+(isError?'bg-red-600':'bg-slate-900')+' text-white';toast.style.display='block';setTimeout(()=>toast.style.display='none',2600)}
+function setLang(lang){currentLang=lang;localStorage.setItem('hkbus_lang',lang);document.getElementById('lang-tc').classList.toggle('bg-white',lang==='tc');document.getElementById('lang-tc').classList.toggle('shadow',lang==='tc');document.getElementById('lang-en').classList.toggle('bg-white',lang==='en');document.getElementById('lang-en').classList.toggle('shadow',lang==='en')}
+function setRadius(m){NEARBY_RADIUS_M=m;['100','200','300'].forEach(r=>{const btn=document.getElementById('radius-'+r);if(!btn)return;const active=Number(r)===m;btn.classList.toggle('active',active);btn.classList.toggle('bg-white',active);btn.classList.toggle('shadow',active);btn.classList.toggle('text-sky-600',active);btn.classList.toggle('text-slate-600',!active)});document.getElementById('plan-results').innerHTML='<div class="p-5 text-center text-xs text-slate-400">Radius set to '+m+'m. Tap “Find Buses” again.</div>'}
+function setMapMode(mode){mapMode=mode;document.getElementById('mode-start').classList.toggle('active',mode==='start');document.getElementById('mode-end').classList.toggle('active',mode==='end');updatePlanStatus()}
+function updatePlanStatus(){const el=document.getElementById('plan-status');if(!startLatLng)el.innerHTML='Tap the map to place <strong>Start</strong> point first.';else if(!endLatLng)el.innerHTML='Now tap the map to place <strong>End</strong> point.';else el.innerHTML='Start & End set. Radius: <strong>'+NEARBY_RADIUS_M+'m</strong>. Tap Find Buses.'}
+function updateFindButton(){const btn=document.getElementById('find-buses-btn');const ready=startLatLng&&endLatLng;btn.disabled=!ready;btn.className='w-full py-3.5 font-semibold rounded-2xl mb-4 text-base transition '+(ready?'bg-sky-500 text-white':'bg-slate-300 text-white disabled:opacity-70')}
+function updateStartEndLine(){if(startEndLine){map.removeLayer(startEndLine);startEndLine=null}if(startLatLng&&endLatLng){startEndLine=L.polyline([[startLatLng.lat,startLatLng.lng],[endLatLng.lat,endLatLng.lng]],{color:'#0ea5e9',weight:3,dashArray:'8 6',opacity:0.7}).addTo(map);map.fitBounds(L.latLngBounds([startLatLng.lat,startLatLng.lng],[endLatLng.lat,endLatLng.lng]),{padding:[40,40],maxZoom:15})}}
+function setStartPoint(lat,lng){startLatLng={lat,lng};if(startMarker)map.removeLayer(startMarker);startMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div style="background:#22c55e;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(map).bindPopup(t('起點','Start'));updateStartEndLine();updatePlanStatus();updateFindButton();if(!endLatLng)setMapMode('end')}
+function setEndPoint(lat,lng){endLatLng={lat,lng};if(endMarker)map.removeLayer(endMarker);endMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div style="background:#ef4444;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(map).bindPopup(t('終點','End'));updateStartEndLine();updatePlanStatus();updateFindButton()}
+function useMyLocation(){if(!navigator.geolocation){showToast('Geolocation not supported',true);return}navigator.geolocation.getCurrentPosition(pos=>{const lat=pos.coords.latitude,lng=pos.coords.longitude;map.setView([lat,lng],16);if(mapMode==='start'||!startLatLng)setStartPoint(lat,lng);else setEndPoint(lat,lng)},()=>showToast('Unable to get location',true),{enableHighAccuracy:true,timeout:10000})}
+function haversine(lat1,lon1,lat2,lon2){const R=6371000;const dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}
+async function loadAllStops(){if(stopsLoaded&&allStops)return allStops;const cacheKey='hkbus_stops_'+new Date().toISOString().slice(0,10);const cached=localStorage.getItem(cacheKey);if(cached){allStops=JSON.parse(cached);stopsLoaded=true;return allStops}try{const res=await fetch(API_BASE_KMB+'/stop');const data=await res.json();allStops=(data.data||[]).map(s=>({stop:s.stop,name_en:s.name_en,name_tc:s.name_tc,lat:parseFloat(s.lat),long:parseFloat(s.long)})).filter(s=>s.lat&&s.long);localStorage.setItem(cacheKey,JSON.stringify(allStops));stopsLoaded=true;return allStops}catch(e){console.error(e);showToast('Failed to load stops',true);return[]}}
+async function loadFares(){if(faresLoaded&&Object.keys(fareMap).length)return fareMap;const cacheKey='hkbus_fares_'+new Date().toISOString().slice(0,10);const cached=localStorage.getItem(cacheKey);if(cached){try{fareMap=JSON.parse(cached);faresLoaded=true;return fareMap}catch(e){}}try{const res=await fetch('https://data.hkbus.app/routeFareList.min.json');const data=await res.json();const list=data.routeList||{};const map={};for(const key of Object.keys(list)){const r=list[key];if(!r||!r.route)continue;const routeNo=String(r.route).toUpperCase();let full=null;if(Array.isArray(r.fares)&&r.fares.length){const nums=r.fares.map(f=>parseFloat(f)).filter(n=>!isNaN(n)&&n>0);if(nums.length)full=Math.max(...nums).toFixed(1)}if(full&&(!map[routeNo]||parseFloat(full)>parseFloat(map[routeNo])))map[routeNo]=full}fareMap=map;localStorage.setItem(cacheKey,JSON.stringify(fareMap));faresLoaded=true;console.log('Loaded fares for',Object.keys(fareMap).length,'routes');return fareMap}catch(e){console.warn('Fare list load failed',e);return{}}}
+function findNearbyStops(lat,lng,radiusM){if(!allStops)return[];return allStops.map(s=>({...s,dist:haversine(lat,lng,s.lat,s.long)})).filter(s=>s.dist<=radiusM).sort((a,b)=>a.dist-b.dist)}
+async function fetchStopEta(stopId){try{const res=await fetch(API_BASE_KMB+'/stop-eta/'+stopId);const data=await res.json();return data.data||[]}catch(e){return[]}}
+async function checkRouteSequence(route,bound,serviceType,fromStop,toStop){try{const b=(bound==='O'||bound==='outbound')?'outbound':'inbound';const res=await fetch(API_BASE_KMB+'/route-stop/'+route+'/'+b+'/'+serviceType);const data=await res.json();const stops=data.data||[];const fromSeq=stops.find(s=>String(s.stop)===String(fromStop))?.seq;const toSeq=stops.find(s=>String(s.stop)===String(toStop))?.seq;return fromSeq&&toSeq&&parseInt(fromSeq)<parseInt(toSeq)}catch(e){return true}}
+async function findGeoBuses(){if(!startLatLng||!endLatLng)return;const container=document.getElementById('plan-results');container.innerHTML='<div class="p-5 text-center text-xs text-slate-400">Loading stops, ETAs & fares...</div>';const btn=document.getElementById('find-buses-btn');btn.disabled=true;try{await Promise.all([loadAllStops(),loadFares()]);const startStops=findNearbyStops(startLatLng.lat,startLatLng.lng,NEARBY_RADIUS_M).slice(0,MAX_NEARBY_START_STOPS);const endStops=findNearbyStops(endLatLng.lat,endLatLng.lng,NEARBY_RADIUS_M);if(!startStops.length||!endStops.length){container.innerHTML='<div class="p-5 text-center text-amber-600 text-sm">No bus stops found within '+NEARBY_RADIUS_M+'m. Try larger radius or different points.</div>';btn.disabled=false;return}let results=[];for(const ss of startStops){const etas=await fetchStopEta(ss.stop);for(const e of etas){if(!e.eta||!e.route)continue;const mins=e.rm!=null?e.rm:Math.max(0,Math.round((new Date(e.eta)-new Date())/60000));let reaches=false;for(const es of endStops.slice(0,8)){if(await checkRouteSequence(e.route,e.dir||'O',e.service_type||'1',ss.stop,es.stop)){reaches=true;break}}if(reaches||endStops.length===0){results.push({route:e.route,mins,eta:e.eta,dest:e.dest_tc||e.dest_en||'',boardStop:ss,walkM:Math.round(ss.dist),company:e.co||'KMB'})}}}const seen={};results=results.filter(r=>{const key=r.route+'|'+r.boardStop.stop;if(seen[key]&&seen[key]<=r.mins)return false;seen[key]=r.mins;return true});results.sort((a,b)=>a.mins-b.mins);window._lastGeoResults=results;if(!results.length){container.innerHTML='<div class="p-5 text-center text-amber-600 text-sm">No connecting buses found within '+NEARBY_RADIUS_M+'m. Try a larger radius.</div>'}else{let html='<div class="px-2 pt-2 pb-1"><div class="px-3 text-[10px] text-emerald-600 font-medium mb-2">'+results.length+' bus(es) found • sorted by arrival</div>';results.forEach((r,idx)=>{const timeStr=r.mins<=0?'NOW':r.mins+' min';const stopName=currentLang==='tc'?(r.boardStop.name_tc||r.boardStop.name_en):(r.boardStop.name_en||r.boardStop.name_tc);const fare=fareMap[String(r.route).toUpperCase()]||fareMap[r.route]||null;const fareHtml=fare?'<div class="text-[11px] text-amber-600 font-medium">$'+fare+'</div>':'<div class="text-[10px] text-slate-400">—</div>';html+='<div onclick="showStopDetail('+idx+')" class="result-card px-3 py-3 flex justify-between items-center border-t cursor-pointer hover:bg-slate-50"><div><div class="font-mono text-xl font-bold text-sky-600">'+r.route+'</div><div class="text-xs text-slate-600 truncate max-w-[180px]">'+stopName+'</div><div class="text-[10px] text-slate-400">'+r.walkM+'m walk • '+(r.dest||'')+'</div></div><div class="text-right"><div class="font-semibold text-lg text-emerald-600 tabular-nums">'+timeStr+'</div>'+fareHtml+'</div></div>'});html+='</div>';container.innerHTML=html}}catch(e){console.error(e);container.innerHTML='<div class="p-5 text-center text-red-500 text-sm">Error loading data. Please try again.</div>'}btn.disabled=false}
+function showStopDetail(idx){const results=window._lastGeoResults;if(!results||!results[idx])return;const r=results[idx];document.getElementById('detail-route').textContent=r.route;const stopName=currentLang==='tc'?(r.boardStop.name_tc||r.boardStop.name_en):(r.boardStop.name_en||r.boardStop.name_tc);document.getElementById('detail-stop-name').textContent=stopName+(r.walkM?' · '+r.walkM+'m walk':'');document.getElementById('detail-eta').textContent=r.mins<=0?t('即將到達','Arriving now'):r.mins+' '+t('分鐘後','min');document.getElementById('stop-detail-modal').classList.remove('hidden');document.getElementById('stop-detail-modal').classList.add('flex');if(walkLine){map.removeLayer(walkLine);walkLine=null}if(startLatLng){walkLine=L.polyline([[startLatLng.lat,startLatLng.lng],[r.boardStop.lat,r.boardStop.long]],{color:'#22c55e',weight:4,dashArray:'6 8',opacity:0.85}).addTo(map);map.fitBounds(walkLine.getBounds(),{padding:[50,50],maxZoom:16})}setTimeout(()=>{if(detailMap){detailMap.remove();detailMap=null}detailMap=L.map('detail-mini-map',{zoomControl:false}).setView([r.boardStop.lat,r.boardStop.long],17);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(detailMap);L.marker([r.boardStop.lat,r.boardStop.long]).addTo(detailMap).bindPopup(stopName).openPopup();if(startLatLng){L.polyline([[startLatLng.lat,startLatLng.lng],[r.boardStop.lat,r.boardStop.long]],{color:'#22c55e',weight:3,dashArray:'5 6'}).addTo(detailMap);L.circleMarker([startLatLng.lat,startLatLng.lng],{radius:5,color:'#16a34a',fillColor:'#22c55e',fillOpacity:1}).addTo(detailMap)}setTimeout(()=>detailMap.invalidateSize(),100)},50)}
+function closeStopDetail(){document.getElementById('stop-detail-modal').classList.add('hidden');document.getElementById('stop-detail-modal').classList.remove('flex');if(detailMap){detailMap.remove();detailMap=null}if(walkLine){map.removeLayer(walkLine);walkLine=null}}
+function initMap(){if(map)return;map=L.map('plan-map',{zoomControl:true}).setView([22.3193,114.1694],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(map);map.on('click',e=>{if(mapMode==='start')setStartPoint(e.latlng.lat,e.latlng.lng);else setEndPoint(e.latlng.lat,e.latlng.lng)})}
+function switchTab(tab){activeTab=tab;['plan','bookmarks','search','commute'].forEach(t=>{document.getElementById('tab-content-'+t).classList.toggle('hidden',t!==tab);const btn=document.getElementById('tab-'+t);btn.classList.toggle('active',t===tab);btn.classList.toggle('text-slate-700',t===tab);btn.classList.toggle('text-slate-500',t!==tab)});if(tab==='plan')setTimeout(()=>{initMap();if(map)map.invalidateSize()},50)}
+function updateBookmarkCount(){const el=document.getElementById('bookmark-count');if(el)el.textContent=bookmarks.length+'/10'}
+function init(){updateBookmarkCount();setLang(currentLang);setTimeout(initMap,100);loadAllStops().catch(()=>{});loadFares().catch(()=>{});document.getElementById('status-text').textContent='Live • '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});console.log('%c[HK Bus v4.1.1] Map P2P + Fares ready','color:#0ea5e9')}
+window.onload=init;
+</script>
+</body>
+</html>
