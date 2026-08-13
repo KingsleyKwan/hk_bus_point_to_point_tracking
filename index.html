@@ -1,1 +1,34 @@
-PLACEHOLDER_WILL_REPLACE_WITH_FULL
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HK Bus Point-to-Point Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; }
+        .nav-tab.active:after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #0ea5e9; }
+        .nav-tab { position: relative; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <header class="bg-white border-b sticky top-0 z-50">
+        <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 bg-sky-500 rounded-2xl flex items-center justify-center text-white text-xl">🚌</div>
+                <div>
+                    <h1 class="font-semibold text-lg">HK Bus <span class="text-xs text-sky-600">v3.7 restored</span></h1>
+                    <p class="text-[10px] text-slate-500">Temporary restore - full map version coming next</p>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="max-w-screen-xl mx-auto px-4 py-8 text-center">
+        <h2 class="text-xl font-semibold mb-2">Site temporarily restored</h2>
+        <p class="text-slate-600 mb-4">The previous push of the new map version was incomplete. The full working version with map Point-to-Point, adjustable radius and walking lines is being prepared and will be pushed shortly.</p>
+        <p class="text-sm text-slate-500">Please refresh in a few minutes.</p>
+    </div>
+</body>
+</html>
